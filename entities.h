@@ -20,5 +20,13 @@ extern size_t decode_html_entities_utf8(char *dest, const char *src);
 	The function returns the length of the decoded string.
 */
 
+
+/**
+ * @param unsafe_symbs strings of unwanted symbs 
+ * delimited '\0'. Ends by double '\0' 
+ * */
+/* extern */ size_t decode_html_entities_utf8_wo_unsafe_symbols(char *dest, const char *src, 
+	const char* unsafe_symbs);
+
 #endif
 

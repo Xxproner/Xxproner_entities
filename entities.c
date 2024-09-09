@@ -239,10 +239,10 @@ static const char *const NAMED_ENTITIES[][2] = {
 	{ "sub;", "⊂" },
 	{ "sube;", "⊆" },
 	{ "sum;", "∑" },
-	{ "sup;", "⊃" },
 	{ "sup1;", "¹" },
 	{ "sup2;", "²" },
 	{ "sup3;", "³" },
+	{ "sup;", "⊃" },
 	{ "supe;", "⊇" },
 	{ "szlig;", "ß" },
 	{ "tau;", "τ" },
@@ -363,6 +363,7 @@ static bool parse_entity(
 	return 1;
 }
 
+
 size_t decode_html_entities_utf8(char *dest, const char *src)
 {
 	if(!src) src = dest;
@@ -391,3 +392,92 @@ size_t decode_html_entities_utf8(char *dest, const char *src)
 	return (size_t)(to - dest);
 }
 
+
+static bool parse_entity_wo_unsafe_symbols(
+	const char *current, char **to, const char **from,
+	const char* unsafe_symbs)
+{
+	const char *end = strchr(current, ';');
+	if(!end) return 0;
+
+	if(current[1] == '#')
+	{
+		char *tail = NULL;
+		int errno_save = errno;
+		bool hex = current[2] == 'x' || current[2] == 'X';
+
+		errno = 0;
+		unsigned long cp = strtoul(
+			current + (hex ? 3 : 2), &tail, hex ? 16 : 10);
+
+		bool fail = errno || tail != end || cp > UNICODE_MAX;
+		errno = errno_save;
+		if(fail) return 0;
+
+
+		// *to += putc_utf8(cp, *to);
+		size_t utf8_symb_len = putc_utf8(cp, *to);
+
+		size_t unsafe_symbs_len;
+		for (const char* unsafe_symb = unsafe_symbs; (unsafe_symbs_len = strlen(unsafe_symb)) != 0; unsafe_symb += (unsafe_symbs_len + 1))
+		{
+			if (utf8_symb_len == unsafe_symbs_len && strncmp(*to, unsafe_symb, utf8_symb_len) == 0)
+			{
+				// rollback
+				size_t html_entities_len = (size_t)(end - current) + 1;
+				strncpy(*to, current, html_entities_len);
+				utf8_symb_len = html_entities_len;
+				break;
+			}
+		}
+
+		*to += utf8_symb_len;
+		*from = end + 1;
+
+		return 1;
+	}
+
+	const char *entity = get_named_entity(&current[1]);
+	if(!entity) return 0;
+
+	size_t len = strlen(entity);
+	memcpy(*to, entity, len);
+
+	*to += len;
+	*from = end + 1;
+
+	return 1;
+}
+
+/**
+ * @param unsafe_symbs strings of unwanted symbs 
+ * delimited '\0'. Ends by double '\0' 
+ * */
+size_t decode_html_entities_utf8_wo_unsafe_symbols(char *dest, const char *src, 
+	const char* unsafe_symbs) 
+{
+	if(!src) src = dest;
+
+	char *to = dest;
+	const char *from = src;
+
+	for(const char *current; (current = strchr(from, '&'));)
+	{
+		memmove(to, from, (size_t)(current - from));
+		to += current - from;
+
+		if(parse_entity_wo_unsafe_symbols(current, &to, &from, unsafe_symbs))
+			continue;
+
+		from = current;
+		*to++ = *from++;
+	}
+
+	size_t remaining = strlen(from);
+
+	memmove(to, from, remaining);
+	to += remaining;
+	*to = 0;
+
+	return (size_t)(to - dest);
+}
