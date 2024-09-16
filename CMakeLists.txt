@@ -17,7 +17,6 @@ ADD_LIBRARY(entities STATIC
 	entities.c
 )
 
-
 # Build unit cases
 ADD_EXECUTABLE(test-entities
 	t-entities.c

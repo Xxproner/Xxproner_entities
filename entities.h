@@ -28,5 +28,18 @@ extern size_t decode_html_entities_utf8(char *dest, const char *src);
 /* extern */ size_t decode_html_entities_utf8_wo_unsafe_symbols(char *dest, const char *src, 
 	const char* unsafe_symbs);
 
+
+/**
+ * 
+ * 
+ * */
+size_t decode_html_entities_utf8_wo_unsafe_symbols_n(char *dest, const char *src, 
+	size_t src_size, const char* unsafe_symbs);
+
+
+// for testing 
+// unsigned long strtoul_n(const char *restrict nptr, size_t nptr_len, 
+	// char **restrict endptr, int base);
+
 #endif
 

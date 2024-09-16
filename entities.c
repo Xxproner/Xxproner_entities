@@ -11,6 +11,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h> /* LONG_MAX */
+#include <ctype.h> /* isspace() */
 
 #define UNICODE_MAX 0x10FFFFul
 
@@ -276,7 +278,7 @@ static const char *const NAMED_ENTITIES[][2] = {
 static int cmp(const void *key, const void *value)
 {
 	return strncmp((const char *)key, *(const char *const *)value,
-		strlen(*(const char *const *)value));
+		strlen(*(const char *const *)value)); // strlen?
 }
 
 static const char *get_named_entity(const char *name)
@@ -477,6 +479,212 @@ size_t decode_html_entities_utf8_wo_unsafe_symbols(char *dest, const char *src,
 
 	memmove(to, from, remaining);
 	to += remaining;
+	*to = 0;
+
+	return (size_t)(to - dest);
+}
+
+
+
+static int strcmp_n(const char *lhs, size_t lhs_len, const char *rhs)
+{
+	size_t rhs_len = strlen(rhs);
+
+	if (rhs_len > lhs_len)
+		return rhs[lhs_len];
+	else if (rhs_len < lhs_len)
+		return lhs[rhs_len];
+
+	// equal len
+	int i = 0;
+	while (lhs[i] == rhs[i] && lhs_len > 0){
+		++i;
+		--lhs_len;
+	}
+
+	return lhs_len == 0 ? 0 : lhs[i] - rhs[i];
+}
+
+static size_t c_is_shit = 0;
+
+static int cmp_n(const void *key, const void *value)
+{
+	return strcmp_n((const char *)key, c_is_shit, 
+		(const char *const *)value);
+}
+
+static const char *get_named_entity_n(const char *name, size_t name_len)
+{
+	c_is_shit = name_len;
+	const char *const *entity = (const char *const *)bsearch(name,
+		NAMED_ENTITIES, sizeof NAMED_ENTITIES / sizeof *NAMED_ENTITIES,
+		sizeof *NAMED_ENTITIES, cmp_n);
+
+	return entity ? entity[1] : NULL;
+}
+
+static const char* strchr_n(const char* src, size_t src_size, int chr)
+{
+	size_t i;
+	for (i = 0; i < src_size && src[i] != '\0'; ++i)
+	{
+		if ((int)src[i] == chr)
+		{
+			break;
+		}
+	}
+
+	return i < src_size ? &src[i] : NULL;
+}
+
+/*https://stackoverflow.com/questions/7457163/what-is-the-implementation-of-strtol*/
+static unsigned long 
+strtoul_n(const char *restrict nptr, size_t nptr_len, char **restrict endptr, int base) {
+    const char *p = nptr, *endp;
+    _Bool overflow = 0;
+    /* Need long long so (LONG_MAX) can fit in these: */
+    long long n = 0UL, cutoff;
+    int cutlim;
+    if (base < 0 || base == 1 || base > 36) {
+#ifdef EINVAL /* errno value defined by POSIX */
+        errno = EINVAL;
+#endif
+        return 0L;
+    }
+    endp = nptr;
+    while (nptr_len > 0 && isspace(*p)){
+        p++;
+    	--nptr_len;
+    }
+
+    if (base == 0)
+        base = 10;
+
+    cutoff = LONG_MAX / base;
+    cutlim = LONG_MAX % base;
+    while (nptr_len > 0) {
+        int c;
+        if (*p >= 'A')
+            c = ((*p - 'A') & (~('a' ^ 'A'))) + 10;
+        else if (*p <= '9')
+            c = *p - '0';
+        else
+            break;
+        if (c < 0 || c >= base) break;
+        endp = ++p;
+        if (overflow) {
+            /* endptr should go forward and point to the non-digit character
+             * (of the given base); required by ANSI standard. */
+            if (endptr) continue;
+            break;
+        }
+        if (n > cutoff || (n == cutoff && c > cutlim)) {
+            overflow = 1; continue;
+        }
+        n = n * base + c;
+        --nptr_len;
+    }
+
+    if (endptr) *endptr = (char *)endp;
+    if (overflow) {
+        errno = ERANGE; 
+        return LONG_MAX;
+    }
+
+    return (unsigned long)n;
+}
+
+static bool parse_entity_wo_unsafe_symbols_n(
+	const char *current, size_t* curr_size,
+	char **to, const char **from,
+	const char* unsafe_symbs)
+{
+	const char *end = strchr_n(current, *curr_size, ';');
+	if(!end) return 0;
+
+	// *curr_size should be more than 3 (start symb, # and)
+	size_t entity_len = (end - current);
+	if(entity_len > 3 && current[1] == '#')
+	{
+		char *tail = NULL;
+		int errno_save = errno;
+		bool hex = entity_len > 4 && (current[2] == 'x' || current[2] == 'X');
+
+		errno = 0;
+		unsigned long cp = strtoul_n(
+			current + (hex ? 3 : 2), *curr_size - (hex ? 3 : 2), &tail, hex ? 16 : 10);
+
+		bool fail = errno || tail != end || cp > UNICODE_MAX;
+		errno = errno_save;
+
+		// maybe error with tail
+		*curr_size -= (tail + 1) - current; // start `symb', `#' and `value'
+
+		if(fail) return 0;
+
+		size_t utf8_symb_len = putc_utf8(cp, *to);
+
+		size_t unsafe_symbs_len;
+		for (const char* unsafe_symb = unsafe_symbs; (unsafe_symbs_len = strlen(unsafe_symb)) != 0; unsafe_symb += (unsafe_symbs_len + 1))
+		{
+			if (utf8_symb_len == unsafe_symbs_len && strncmp(*to, unsafe_symb, utf8_symb_len) == 0)
+			{
+				// rollback
+				size_t html_entities_len = (size_t)(end - current) + 1;
+				strncpy(*to, current, html_entities_len);
+				utf8_symb_len = html_entities_len;
+				break;
+			}
+		}
+
+		*to += utf8_symb_len;
+		*from = end + 1;
+		--curr_size;
+
+		return 1;
+	}
+
+	if (*curr_size < 2)	
+		return 0;
+
+	const char *entity = get_named_entity_n(&current[1], *curr_size - 1); // dangerous
+	if(!entity) return 0;
+
+	size_t len = strlen(entity);
+	memcpy(*to, entity, len);
+
+	*to += len;
+
+	*curr_size -= (end + 1) - *from;
+	*from = end + 1;
+
+	return 1;
+}
+
+size_t decode_html_entities_utf8_wo_unsafe_symbols_n(char *dest, const char *src, 
+	size_t src_size, const char* unsafe_symbs)
+{
+	if(!src) src = dest;
+
+	char *to = dest;
+	const char *from = src;
+
+	for(const char *current; (current = strchr_n(from, src_size, '&'));)
+	{
+		memmove(to, from, (size_t)(current - from));
+		to += current - from;
+		src_size -= current - from;
+
+		if(parse_entity_wo_unsafe_symbols_n(current, &src_size, &to, &from, unsafe_symbs))
+			continue;
+
+		from = current;
+		*to++ = *from++;
+		src_size -= 1;
+	}
+
+	memmove(to, from, src_size);
+	to += src_size;
 	*to = 0;
 
 	return (size_t)(to - dest);
