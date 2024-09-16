@@ -39,6 +39,8 @@ int main(void)
 
 
 	{
+=======
+>>>>>>> 70e7f373d92f7a92beedb155bda0946297795545
 		static const char SAMPLE[] = "&#62;П&#62;авел&#62;";
 		// do not convert symbols /, >, <, -, and ! to prevent xss
 		static const char INPUT[] = "&#62;&#1055;&#62;&#1072;&#1074;&#1077;&#1083;&#62;"; // >
