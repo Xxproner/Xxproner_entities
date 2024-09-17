@@ -510,7 +510,7 @@ static size_t c_is_shit = 0;
 static int cmp_n(const void *key, const void *value)
 {
 	return strcmp_n((const char *)key, c_is_shit, 
-		(const char *const *)value);
+		(const char *)value);
 }
 
 static const char *get_named_entity_n(const char *name, size_t name_len)
@@ -617,8 +617,6 @@ static bool parse_entity_wo_unsafe_symbols_n(
 		bool fail = errno || tail != end || cp > UNICODE_MAX;
 		errno = errno_save;
 
-		// maybe error with tail
-		*curr_size -= (tail + 1) - current; // start `symb', `#' and `value'
 
 		if(fail) return 0;
 
@@ -639,8 +637,8 @@ static bool parse_entity_wo_unsafe_symbols_n(
 
 		*to += utf8_symb_len;
 		*from = end + 1;
-		--curr_size;
 
+		*curr_size -= end - current;
 		return 1;
 	}
 
@@ -654,9 +652,8 @@ static bool parse_entity_wo_unsafe_symbols_n(
 	memcpy(*to, entity, len);
 
 	*to += len;
-
-	*curr_size -= (end + 1) - *from;
 	*from = end + 1;
+	*curr_size -= end - current;
 
 	return 1;
 }
@@ -679,13 +676,14 @@ size_t decode_html_entities_utf8_wo_unsafe_symbols_n(char *dest, const char *src
 			continue;
 
 		from = current;
+		src_size -= current - from; // move of from buffer
 		*to++ = *from++;
 		src_size -= 1;
 	}
 
 	memmove(to, from, src_size);
 	to += src_size;
-	*to = 0;
+	// *to = 0;
 
 	return (size_t)(to - dest);
 }

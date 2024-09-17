@@ -59,30 +59,30 @@ int main(void)
 		assert(strcmp(buffer, SAMPLE) == 0);
 	}
 
-
 	{
-		// static const char SAMPLE[] = "123123123123123123123123123123";
-		// static const char SAMPLE_h[] = "AAB123";
-		// assert(strtoul_n(SAMPLE, 0, NULL, 10) == 0);
-		// assert(strtoul_n(SAMPLE, 3, NULL, 10) == 123);
-		// assert(strtoul_n(SAMPLE, 4, NULL, 10) == 1231);
-		// assert(strtoul_n(SAMPLE, 5, NULL, 10) == 12312);
-		// assert(strtoul_n(SAMPLE, 6, NULL, 10) == 123123);
-		// assert(strtoul_n(SAMPLE, 20, NULL, 10) == LONG_MAX); // overflow
-		// assert(strncmp(buffer, SAMPLE, sizeof SAMPLE) == 0);
-	}
-
-	{
-		static const char SAMPLE[] = "&#62;П";
+		static const char SAMPLE[] = "&#;П";
 		// do not convert symbols /, >, <, -, and ! to prevent xss
 		static const char INPUT[] = "&#;&#1055;&#62;&#1072;&#1074;&#1077;&#1083;&#62;"; // >
 		const size_t buf_len = 10; // "&#;" -- bad string
 		char not_null_term_buf[buf_len];
-		// assert(decode_html_entities_utf8_wo_unsafe_symbols_n(buffer, INPUT, 17, "/\0>\0<\0!\0-\0\0") == sizeof SAMPLE - 1);
+
 		size_t temp_buf_true_len = decode_html_entities_utf8_wo_unsafe_symbols_n(not_null_term_buf, INPUT, buf_len, "/\0>\0<\0!\0-\0\0");
-		printf("len = %d %.*s\n", temp_buf_true_len, temp_buf_true_len, not_null_term_buf);
-		not_null_term_buf[buf_len - 1] = 0;
-		// assert(strncmp(buffer, SAMPLE, sizeof SAMPLE) == 0);
+		printf("%d %.*s\n", (int)temp_buf_true_len, temp_buf_true_len, not_null_term_buf);
+		// assert(temp_buf_true_len == sizeof SAMPLE);
+		// assert(strncmp(not_null_term_buf, SAMPLE, temp_buf_true_len) == 0);
+	}
+
+	{
+		static const char SAMPLE[] = "&#-2;&#1234567890ABCDEFGHJCLMNOP123456789;";
+		// do not convert symbols /, >, <, -, and ! to prevent xss
+		static const char INPUT[] = "&#-2;&#1234567890ABCDEFGHJCLMNOP123456789;"; // >
+		const size_t buf_len = sizeof INPUT - 1; // w/o null terminator
+		char not_null_term_buf[buf_len];
+
+		size_t temp_buf_true_len = decode_html_entities_utf8_wo_unsafe_symbols_n(not_null_term_buf, INPUT, buf_len, "/\0>\0<\0!\0-\0\0");
+		// printf("%.*s\n", temp_buf_true_len, not_null_term_buf);
+		assert(temp_buf_true_len == sizeof SAMPLE - 1);
+		assert(strncmp(not_null_term_buf, SAMPLE, temp_buf_true_len) == 0);
 	}
 
 	fprintf(stdout, "All tests passed :-)\n");
