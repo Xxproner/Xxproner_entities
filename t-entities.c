@@ -67,16 +67,16 @@ int main(void)
 		char not_null_term_buf[buf_len];
 
 		size_t temp_buf_true_len = decode_html_entities_utf8_wo_unsafe_symbols_n(not_null_term_buf, INPUT, buf_len, "/\0>\0<\0!\0-\0\0");
-		printf("%d %.*s\n", (int)temp_buf_true_len, temp_buf_true_len, not_null_term_buf);
-		// assert(temp_buf_true_len == sizeof SAMPLE);
-		// assert(strncmp(not_null_term_buf, SAMPLE, temp_buf_true_len) == 0);
+		// printf("%d %.*s\n", (int)temp_buf_true_len, temp_buf_true_len, not_null_term_buf);
+		assert(temp_buf_true_len == sizeof SAMPLE - 1);
+		assert(strncmp(not_null_term_buf, SAMPLE, temp_buf_true_len) == 0);
 	}
 
 	{
 		static const char SAMPLE[] = "&#-2;&#1234567890ABCDEFGHJCLMNOP123456789;";
 		// do not convert symbols /, >, <, -, and ! to prevent xss
 		static const char INPUT[] = "&#-2;&#1234567890ABCDEFGHJCLMNOP123456789;"; // >
-		const size_t buf_len = sizeof INPUT - 1; // w/o null terminator
+		size_t buf_len = sizeof INPUT - 1; // w/o null terminator
 		char not_null_term_buf[buf_len];
 
 		size_t temp_buf_true_len = decode_html_entities_utf8_wo_unsafe_symbols_n(not_null_term_buf, INPUT, buf_len, "/\0>\0<\0!\0-\0\0");
@@ -84,6 +84,25 @@ int main(void)
 		assert(temp_buf_true_len == sizeof SAMPLE - 1);
 		assert(strncmp(not_null_term_buf, SAMPLE, temp_buf_true_len) == 0);
 	}
+
+	{
+		char INPUT[] = "";
+
+		assert(decode_html_entities_utf8_wo_unsafe_symbols_n(INPUT, NULL, 0, "/\0>\0<\0!\0-\0\0") == 0);
+	}
+
+
+	{
+		char INPUT[] = "&#;&#1055;&#62;&#1072;&#1074;&#1077;&#1083;&#62;";
+
+		size_t proccessed = decode_html_entities_utf8_wo_unsafe_symbols_n(INPUT, NULL, sizeof INPUT - 1, "/\0>\0<\0!\0-\0\0");
+		// printf("%d %.*s", proccessed, proccessed, INPUT);
+		// printf("%d", sizeof("&#62;П&#62;авел&#62;") - 1);
+		assert(proccessed == sizeof("&#;П&#62;авел&#62;") - 1);
+		assert(strncmp(INPUT, "&#;П&#62;авел&#62;", proccessed) == 0);
+
+	}
+
 
 	fprintf(stdout, "All tests passed :-)\n");
 	return EXIT_SUCCESS;

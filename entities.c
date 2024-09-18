@@ -427,7 +427,7 @@ static bool parse_entity_wo_unsafe_symbols(
 			{
 				// rollback
 				size_t html_entities_len = (size_t)(end - current) + 1;
-				strncpy(*to, current, html_entities_len);
+				memmove(*to, current, html_entities_len);
 				utf8_symb_len = html_entities_len;
 				break;
 			}
@@ -629,7 +629,7 @@ static bool parse_entity_wo_unsafe_symbols_n(
 			{
 				// rollback
 				size_t html_entities_len = (size_t)(end - current) + 1;
-				strncpy(*to, current, html_entities_len);
+				memmove(*to, current, html_entities_len);
 				utf8_symb_len = html_entities_len;
 				break;
 			}
@@ -638,7 +638,7 @@ static bool parse_entity_wo_unsafe_symbols_n(
 		*to += utf8_symb_len;
 		*from = end + 1;
 
-		*curr_size -= end - current;
+		*curr_size -= end - current + 1;
 		return 1;
 	}
 
@@ -653,7 +653,7 @@ static bool parse_entity_wo_unsafe_symbols_n(
 
 	*to += len;
 	*from = end + 1;
-	*curr_size -= end - current;
+	*curr_size -= end - current + 1;
 
 	return 1;
 }
@@ -661,7 +661,7 @@ static bool parse_entity_wo_unsafe_symbols_n(
 size_t decode_html_entities_utf8_wo_unsafe_symbols_n(char *dest, const char *src, 
 	size_t src_size, const char* unsafe_symbs)
 {
-	if(!src) src = dest;
+	if(!src) src = dest; //return 0;
 
 	char *to = dest;
 	const char *from = src;
