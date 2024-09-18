@@ -17,29 +17,23 @@ extern size_t decode_html_entities_utf8(char *dest, const char *src);
 	If <src> is <NULL>, input will be taken from <dest>, decoding
 	the entities in-place.
 
-	The function returns the length of the decoded string.
+	The function returns the size of the decoded string.
 */
 
-
-/**
- * @param unsafe_symbs strings of unwanted symbs 
- * delimited '\0'. Ends by double '\0' 
- * */
-/* extern */ size_t decode_html_entities_utf8_wo_unsafe_symbols(char *dest, const char *src, 
+extern size_t decode_html_entities_utf8_wo_unsafe_symbols(char *dest, const char *src, 
 	const char* unsafe_symbs);
+/*	Takes one more params <unsafe_symbs> string delimited '\0' of anscii characters 
+  	that prevented to decode. Ends by double '\0'
 
+*/
 
-/**
- * 
- * 
- * */
-size_t decode_html_entities_utf8_wo_unsafe_symbols_n(char *dest, const char *src, 
+extern size_t decode_html_entities_utf8_wo_unsafe_symbols_n(char *dest, const char *src, 
 	size_t src_size, const char* unsafe_symbs);
+/*	Takes one more params <src_size> that indicated 
+	how many characters must be decode i.e. size of <src>
 
+	<src> may be not null terminated!
+*/
 
-// for testing 
-// unsigned long strtoul_n(const char *restrict nptr, size_t nptr_len, 
-	// char **restrict endptr, int base);
-
-#endif
+#endif // DECODE_HTML_ENTITIES_UTF8_
 

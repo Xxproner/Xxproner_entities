@@ -8,7 +8,6 @@
 #include "entities.h"
 
 #include <errno.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h> /* LONG_MAX */
@@ -327,7 +326,7 @@ static size_t putc_utf8(unsigned long cp, char *buffer)
 	return 0;
 }
 
-static bool parse_entity(
+static _Bool parse_entity(
 	const char *current, char **to, const char **from)
 {
 	const char *end = strchr(current, ';');
@@ -337,13 +336,13 @@ static bool parse_entity(
 	{
 		char *tail = NULL;
 		int errno_save = errno;
-		bool hex = current[2] == 'x' || current[2] == 'X';
+		_Bool hex = current[2] == 'x' || current[2] == 'X';
 
 		errno = 0;
 		unsigned long cp = strtoul(
 			current + (hex ? 3 : 2), &tail, hex ? 16 : 10);
 
-		bool fail = errno || tail != end || cp > UNICODE_MAX;
+		_Bool fail = errno || tail != end || cp > UNICODE_MAX;
 		errno = errno_save;
 		if(fail) return 0;
 
@@ -395,7 +394,7 @@ size_t decode_html_entities_utf8(char *dest, const char *src)
 }
 
 
-static bool parse_entity_wo_unsafe_symbols(
+static _Bool parse_entity_wo_unsafe_symbols(
 	const char *current, char **to, const char **from,
 	const char* unsafe_symbs)
 {
@@ -406,13 +405,13 @@ static bool parse_entity_wo_unsafe_symbols(
 	{
 		char *tail = NULL;
 		int errno_save = errno;
-		bool hex = current[2] == 'x' || current[2] == 'X';
+		_Bool hex = current[2] == 'x' || current[2] == 'X';
 
 		errno = 0;
 		unsigned long cp = strtoul(
 			current + (hex ? 3 : 2), &tail, hex ? 16 : 10);
 
-		bool fail = errno || tail != end || cp > UNICODE_MAX;
+		_Bool fail = errno || tail != end || cp > UNICODE_MAX;
 		errno = errno_save;
 		if(fail) return 0;
 
@@ -451,10 +450,6 @@ static bool parse_entity_wo_unsafe_symbols(
 	return 1;
 }
 
-/**
- * @param unsafe_symbs strings of unwanted symbs 
- * delimited '\0'. Ends by double '\0' 
- * */
 size_t decode_html_entities_utf8_wo_unsafe_symbols(char *dest, const char *src, 
 	const char* unsafe_symbs) 
 {
@@ -505,17 +500,17 @@ static int strcmp_n(const char *lhs, size_t lhs_len, const char *rhs)
 	return lhs_len == 0 ? 0 : lhs[i] - rhs[i];
 }
 
-static size_t c_is_shit = 0;
+static size_t clang_is_good = 0;
 
 static int cmp_n(const void *key, const void *value)
 {
-	return strcmp_n((const char *)key, c_is_shit, 
+	return strcmp_n((const char *)key, clang_is_good, 
 		(const char *)value);
 }
 
 static const char *get_named_entity_n(const char *name, size_t name_len)
 {
-	c_is_shit = name_len;
+	clang_is_good = name_len;
 	const char *const *entity = (const char *const *)bsearch(name,
 		NAMED_ENTITIES, sizeof NAMED_ENTITIES / sizeof *NAMED_ENTITIES,
 		sizeof *NAMED_ENTITIES, cmp_n);
@@ -594,7 +589,7 @@ strtoul_n(const char *restrict nptr, size_t nptr_len, char **restrict endptr, in
     return (unsigned long)n;
 }
 
-static bool parse_entity_wo_unsafe_symbols_n(
+static _Bool parse_entity_wo_unsafe_symbols_n(
 	const char *current, size_t* curr_size,
 	char **to, const char **from,
 	const char* unsafe_symbs)
@@ -602,19 +597,19 @@ static bool parse_entity_wo_unsafe_symbols_n(
 	const char *end = strchr_n(current, *curr_size, ';');
 	if(!end) return 0;
 
-	// *curr_size should be more than 3 (start symb, # and)
+	// *curr_size should be more than 3 (start symb, # and ;)
 	size_t entity_len = (end - current);
 	if(entity_len > 3 && current[1] == '#')
 	{
 		char *tail = NULL;
 		int errno_save = errno;
-		bool hex = entity_len > 4 && (current[2] == 'x' || current[2] == 'X');
+		_Bool hex = entity_len > 4 && (current[2] == 'x' || current[2] == 'X');
 
 		errno = 0;
 		unsigned long cp = strtoul_n(
 			current + (hex ? 3 : 2), *curr_size - (hex ? 3 : 2), &tail, hex ? 16 : 10);
 
-		bool fail = errno || tail != end || cp > UNICODE_MAX;
+		_Bool fail = errno || tail != end || cp > UNICODE_MAX;
 		errno = errno_save;
 
 
@@ -645,7 +640,7 @@ static bool parse_entity_wo_unsafe_symbols_n(
 	if (*curr_size < 2)	
 		return 0;
 
-	const char *entity = get_named_entity_n(&current[1], *curr_size - 1); // dangerous
+	const char *entity = get_named_entity_n(&current[1], *curr_size - 1);
 	if(!entity) return 0;
 
 	size_t len = strlen(entity);
@@ -661,7 +656,7 @@ static bool parse_entity_wo_unsafe_symbols_n(
 size_t decode_html_entities_utf8_wo_unsafe_symbols_n(char *dest, const char *src, 
 	size_t src_size, const char* unsafe_symbs)
 {
-	if(!src) src = dest; //return 0;
+	if(!src) src = dest;
 
 	char *to = dest;
 	const char *from = src;
@@ -676,14 +671,13 @@ size_t decode_html_entities_utf8_wo_unsafe_symbols_n(char *dest, const char *src
 			continue;
 
 		from = current;
-		src_size -= current - from; // move of from buffer
+		src_size -= current - from;
 		*to++ = *from++;
 		src_size -= 1;
 	}
 
 	memmove(to, from, src_size);
 	to += src_size;
-	// *to = 0;
 
 	return (size_t)(to - dest);
 }
